@@ -18,3 +18,5 @@ POSE_NET=./pretrained/pose/cs+k_pose.tar
  evo_rpe kitti -s ./kitti_eval/$seq.txt $OUTPUT_DIR/$seq.txt -p --plot_mode=xz --save_results $OUTPUT_DIR/rpe.zip
 
 #python /home/yoyee/Documents/deep_keyframe/kitti-odom-eval/eval_odom.py --result $OUTPUT_DIR --align 7dof --seqs $seq
+ evo_traj kitti -s results/vo/cs+k_pose/euroc/V1_01_easy.txt --ref=./datasets/euroc/V1_01_easy/mav0/data_f.kitti -s -p --plot_mode=xz --save_plot results/vo/cs+k_pose/euroc/traj.zip
+ evo_traj kitti -s results/vo/cs+k_pose/euroc/V1_01_easy.txt --ref=./datasets/euroc/V1_01_easy/mav0/data_f.kitti -s -p --plot_mode=xy --save_plot results/vo/cs+k_pose/euroc/traj_xy.zip
