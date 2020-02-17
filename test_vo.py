@@ -18,6 +18,7 @@ parser.add_argument("--pretrained-posenet", required=True,
                     type=str, help="pretrained PoseNet path")
 parser.add_argument("--img-height", default=256, type=int, help="Image height")
 parser.add_argument("--img-width", default=832, type=int, help="Image width")
+parser.add_argument("-d", "--dataset", default='kitti', type=str, help="dataset type")
 parser.add_argument("--dataset-dir", type=str, help="Dataset directory")
 parser.add_argument("--output-dir", type=str,
                     help="Output directory for saving predictions in a big 3D numpy file")
@@ -29,9 +30,26 @@ parser.add_argument("--sequence", default='09',
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+def read_images_files_from_folder(drive_path, folder="rgb"):
+    # print(f"cid_num: {scene_data['cid_num']}")
+    # img_dir = os.path.join(drive_path, "cam%d" % scene_data["cid_num"])
+    # img_files = sorted(glob(img_dir + "/data/*.png"))
+    print(f"drive_path: {drive_path}")
+    ## given that we have matched time stamps
+    arr = np.genfromtxt(
+        f"{drive_path}/{folder}/data_f.txt", dtype="str"
+    )  # [N, 2(time, path)]
+    img_files = np.char.add(str(drive_path) + f"/{folder}/data/", arr[:, 1])
+    img_files = [Path(f) for f in img_files]
+    img_files = sorted(img_files)
+
+    print(f"img_files: {img_files[0]}")
+    return img_files
 
 def load_tensor_image(filename, args):
     img = imread(filename).astype(np.float32)
+    if img.ndim == 2:
+        img = np.tile(img[..., np.newaxis], (1, 1, 3)) # expand to rgb
     h, w, _ = img.shape
     if (h != args.img_height or w != args.img_width):
         img = imresize(img, (args.img_height, args.img_width)
@@ -51,12 +69,25 @@ def main():
     pose_net.load_state_dict(weights_pose['state_dict'], strict=False)
     pose_net.eval()
 
-    image_dir = Path(args.dataset_dir + args.sequence + "/image_2/")
+    if args.dataset == 'kitti':
+        image_dir = Path(args.dataset_dir + args.sequence + "/image_2/")
+    elif args.dataset == 'euroc':
+        # subfolders = '/datasets/euroc/V1_01_easy/mav0/cam0/data/'
+        subfolders = '/mav0/'
+        image_dir = Path(args.dataset_dir + args.sequence + subfolders)
+
+
     output_dir = Path(args.output_dir)
     output_dir.makedirs_p()
 
-    test_files = sum([image_dir.files('*.{}'.format(ext))
+    if args.dataset == 'kitti':
+        test_files = sum([image_dir.files('*.{}'.format(ext))
                       for ext in args.img_exts], [])
+    elif args.dataset == 'euroc':
+        test_files = read_images_files_from_folder(
+                image_dir, folder="cam0"
+        )
+        pass
     test_files.sort()
     print('{} files to test'.format(len(test_files)))
 
