@@ -12,6 +12,12 @@ POSE_NET=./pretrained/pose/cs+k_pose.tar
 #--sequence $seq \
 #--pretrained-posenet $POSE_NET --dataset-dir $DATASET_DIR --output-dir $OUTPUT_DIR
 
+
+### euroc
+python test_vo.py \
+-d euroc --img-height 480 --img-width 752 --sequence V1_01_easy --pretrained-posenet ./pretrained/pose/cs+k_pose.tar  --dataset-dir datasets/euroc/ --output-dir results/vo/cs+k_pose/euroc/
+
+
 # show the trajectory with gt. note that use "-s" for global scale alignment
  evo_traj kitti -s $OUTPUT_DIR/$seq.txt --ref=./kitti_eval/$seq.txt -s -p --plot_mode=xz --save_plot $OUTPUT_DIR/traj.zip
  evo_ape kitti -s ./kitti_eval/$seq.txt $OUTPUT_DIR/$seq.txt -p --plot_mode=xz --save_results $OUTPUT_DIR/ate.zip
