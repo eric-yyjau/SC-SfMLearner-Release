@@ -26,6 +26,7 @@ parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'],
                     nargs='*', type=str, help="images extensions to glob")
 parser.add_argument("--sequence", default='09',
                     type=str, help="sequence to test")
+parser.add_argument("--save_video", action="store_true", help="save as video")
 
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -64,21 +65,23 @@ def load_tensor_image(filename, args):
 def main():
     args = parser.parse_args()
 
+    # model
     weights_pose = torch.load(args.pretrained_posenet)
     pose_net = models.PoseNet().to(device)
     pose_net.load_state_dict(weights_pose['state_dict'], strict=False)
     pose_net.eval()
 
+    # output dir
+    output_dir = Path(args.output_dir)
+    output_dir.makedirs_p()
+
+    # dataset
     if args.dataset == 'kitti':
         image_dir = Path(args.dataset_dir + args.sequence + "/image_2/")
     elif args.dataset == 'euroc':
         # subfolders = '/datasets/euroc/V1_01_easy/mav0/cam0/data/'
         subfolders = '/mav0/'
         image_dir = Path(args.dataset_dir + args.sequence + subfolders)
-
-
-    output_dir = Path(args.output_dir)
-    output_dir.makedirs_p()
 
     if args.dataset == 'kitti':
         test_files = sum([image_dir.files('*.{}'.format(ext))
@@ -91,11 +94,21 @@ def main():
     test_files.sort()
     print('{} files to test'.format(len(test_files)))
 
+    ## init pose
     global_pose = np.identity(4)
     poses = [global_pose[0:3, :].reshape(1, 12)]
 
+    ## load the first image
     n = len(test_files)
     tensor_img1 = load_tensor_image(test_files[0], args)
+
+    ## for saving video
+    if args.save_video:
+        width = args.width
+        height = args.height
+        FPS = 24
+        fourcc = VideoWriter_fourcc(*'MP4V')
+        video = VideoWriter(f'{args.output_dir}/args.sequence/demo.mp4', fourcc, float(FPS), (width, height))        
 
     for iter in tqdm(range(n - 1)):
         tensor_img2 = load_tensor_image(test_files[iter+1], args)
@@ -108,6 +121,7 @@ def main():
 
         # update
         tensor_img1 = tensor_img2
+
 
     poses = np.concatenate(poses, axis=0)
     filename = Path(args.output_dir + args.sequence + ".txt")

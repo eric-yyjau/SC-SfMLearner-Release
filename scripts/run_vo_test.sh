@@ -12,6 +12,13 @@ POSE_NET=./pretrained/pose/cs+k_pose.tar
 #--sequence $seq \
 #--pretrained-posenet $POSE_NET --dataset-dir $DATASET_DIR --output-dir $OUTPUT_DIR
 
+### kitti
+python test_vo.py \
+--img-height 256 --img-width 832 \
+--sequence 09 \
+--pretrained-posenet ./pretrained/pose/cs+k_pose.tar \
+--dataset-dir /media/yoyee/Big_re/kitti/sequences/ \
+--output-dir results/vo/cs+k_pose/$seq \
 
 ### euroc
 python test_vo.py \
