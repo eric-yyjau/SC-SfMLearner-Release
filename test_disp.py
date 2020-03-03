@@ -7,6 +7,9 @@ import argparse
 from tqdm import tqdm
 import models
 
+from test_vo import read_images_files_from_folder
+from test_vo import load_tensor_image
+
 parser = argparse.ArgumentParser(description='Script for DispNet testing with corresponding groundTruth',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--pretrained-dispnet", required=True,
@@ -36,18 +39,21 @@ device = torch.device(
 
 def load_img(filename, args):
     img = imread(filename).astype(np.float32)
+    if img.ndim == 2:
+        img = np.tile(img[..., np.newaxis], (1, 1, 3)) # expand to rgb
     h, w, _ = img.shape
     if (h != args.img_height or w != args.img_width):
         img = imresize(img, (args.img_height, args.img_width)
                        ).astype(np.float32)    
     return img
 
-def load_tensor_image(filename, args):
-    img = load_img(filename, args)
-    img = np.transpose(img, (2, 0, 1))
-    tensor_img = (
-        (torch.from_numpy(img).unsqueeze(0)/255 - 0.5)/0.5).to(device)
-    return tensor_img
+
+# def load_tensor_image(filename, args):
+#     img = load_img(filename, args)
+#     img = np.transpose(img, (2, 0, 1))
+#     tensor_img = (
+#         (torch.from_numpy(img).unsqueeze(0)/255 - 0.5)/0.5).to(device)
+#     return tensor_img
 
 def read_depth_npy(filename):
     depth_arr = np.load(filename)
@@ -116,14 +122,15 @@ def main():
         predictions[j] = depth
 
         if args.save_video:
+            max_depth = 5
             gray2rbg = lambda a: np.tile(a[:,:,None], (1,1,3))
             img_np = load_img(test_files[iter+1], args)
-            def depth_post_processing(depth):
-                depth = depth/(depth.max()+1e-6)
+            def depth_post_processing(depth, max_depth=5):
+                depth = depth/max_depth
                 depth = np.clip(depth, 0, 1)
                 depth = (depth*255).astype(np.int32)
                 return depth
-            depth = depth_post_processing(depth)
+            depth = depth_post_processing(depth, max_depth)
             depth_rgb = gray2rbg(depth)
             # print(f"img_np: {img_np.max()}, depth_rgb: {depth_rgb.max()}")
 
@@ -133,7 +140,7 @@ def main():
         # if iter > 10:
         #     break
     
-    np.save(output_dir/'predictions.npy', predictions)
+    # np.save(output_dir/'predictions.npy', predictions)
     if args.save_video:
         video.release()
 

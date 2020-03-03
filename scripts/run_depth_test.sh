@@ -29,3 +29,11 @@ python test_disp.py \
 --dataset-dir /media/yoyee/Big_re/kitti/sequences/ \
  --output-dir results/depth/cs+k_pose/09 \
  --save_video
+
+ ### euroc
+python test_disp.py \
+-d euroc --img-height 480 --img-width 752 --sequence V1_01_easy \
+--pretrained-dispnet ./pretrained/depth/cs+k_depth.tar  \
+--dispnet DispResNet \
+--dataset-dir ../datasets/euroc/ --output-dir results/depth/cs+k_depth/euroc/ \
+--save_video

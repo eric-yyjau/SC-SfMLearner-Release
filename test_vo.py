@@ -26,7 +26,6 @@ parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'],
                     nargs='*', type=str, help="images extensions to glob")
 parser.add_argument("--sequence", default='09',
                     type=str, help="sequence to test")
-parser.add_argument("--save_video", action="store_true", help="save as video")
 
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -102,14 +101,6 @@ def main():
     n = len(test_files)
     tensor_img1 = load_tensor_image(test_files[0], args)
 
-    ## for saving video
-    if args.save_video:
-        width = args.width
-        height = args.height
-        FPS = 24
-        fourcc = VideoWriter_fourcc(*'MP4V')
-        video = VideoWriter(f'{args.output_dir}/args.sequence/demo.mp4', fourcc, float(FPS), (width, height))        
-
     for iter in tqdm(range(n - 1)):
         tensor_img2 = load_tensor_image(test_files[iter+1], args)
         pose = pose_net(tensor_img1, tensor_img2)
@@ -121,6 +112,7 @@ def main():
 
         # update
         tensor_img1 = tensor_img2
+        
 
 
     poses = np.concatenate(poses, axis=0)
