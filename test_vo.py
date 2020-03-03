@@ -27,6 +27,7 @@ parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'],
 parser.add_argument("--sequence", default='09',
                     type=str, help="sequence to test")
 parser.add_argument("--save_video", action="store_true", help="save as video")
+parser.add_argument("--skip_frame", default=1, type=int, help="The time differences between frames")
 
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -64,6 +65,7 @@ def load_tensor_image(filename, args):
 @torch.no_grad()
 def main():
     args = parser.parse_args()
+    print(f"args: {args}")
 
     # model
     weights_pose = torch.load(args.pretrained_posenet)
@@ -110,22 +112,32 @@ def main():
         fourcc = VideoWriter_fourcc(*'MP4V')
         video = VideoWriter(f'{args.output_dir}/args.sequence/demo.mp4', fourcc, float(FPS), (width, height))        
 
-    for iter in tqdm(range(n - 1)):
-        tensor_img2 = load_tensor_image(test_files[iter+1], args)
+    skip_frame = args.skip_frame
+    time_stamps = [0]
+    for iter in tqdm(range(0, n - skip_frame, skip_frame)):
+        tensor_img2 = load_tensor_image(test_files[iter+skip_frame], args)
         pose = pose_net(tensor_img1, tensor_img2)
         pose_mat = pose_vec2mat(pose).squeeze(0).cpu().numpy()
         pose_mat = np.vstack([pose_mat, np.array([0, 0, 0, 1])])
         global_pose = global_pose @ np.linalg.inv(pose_mat)
 
         poses.append(global_pose[0:3, :].reshape(1, 12))
+        time_stamps.append(iter+skip_frame)
 
         # update
         tensor_img1 = tensor_img2
 
 
     poses = np.concatenate(poses, axis=0)
-    filename = Path(args.output_dir + args.sequence + ".txt")
+    time_stamps = np.array(time_stamps).reshape(-1, 1)
+    poses_wTime = np.concatenate((time_stamps, poses), axis=1)
+    # save to files
+    filename = Path(args.output_dir + args.sequence + "_noTime.txt")
     np.savetxt(filename, poses, delimiter=' ', fmt='%1.8e')
+    filename = Path(args.output_dir + args.sequence + "_t.txt")
+    np.savetxt(filename, poses_wTime, delimiter=' ', fmt='%1.8e')
+    filename = Path(args.output_dir + args.sequence + ".txt") # save the time as default
+    np.savetxt(filename, poses_wTime, delimiter=' ', fmt='%1.8e')
 
 
 if __name__ == '__main__':
