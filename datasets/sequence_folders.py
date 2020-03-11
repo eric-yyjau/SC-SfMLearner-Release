@@ -21,14 +21,14 @@ class SequenceFolder(data.Dataset):
         transform functions must take in a list a images and a numpy array (usually intrinsics matrix)
     """
 
-    def __init__(self, root, seed=None, train=True, sequence_length=3, transform=None, target_transform=None, skip_frame=1):
+    def __init__(self, root, seed=None, train=True, sequence_length=3, transform=None, target_transform=None, skip_frame=1, keyframe=None):
         np.random.seed(seed)
         random.seed(seed)
         self.root = Path(root)
         scene_list_path = self.root/'train.txt' if train else self.root/'val.txt'
         self.scenes = [self.root/folder[:-1] for folder in open(scene_list_path)]
         self.transform = transform
-        self.crawl_folders(sequence_length, skip_frame)
+        self.crawl_folders(sequence_length, skip_frame, keyframe)
 
     def crawl_folders(self, sequence_length, skip_frame=1, keyframe=None):
         sequence_set = []
