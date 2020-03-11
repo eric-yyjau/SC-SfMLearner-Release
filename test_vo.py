@@ -116,9 +116,8 @@ def main():
     skip_frame = args.skip_frame
     time_stamps = [0]
     if args.keyframe != "":
-        stamps = np.genfromtxt(args.keyframe, dtype=float)
-        stamps = stamps[:,:1].reshape(-1,) - 1 # to offset the counting system starting from 1
-        loop_arr = stamps.astype(int)
+        from utils import load_keyframe
+        loop_arr = load_keyframe(args.keyframe)
     else:
         loop_arr = range(0, n - skip_frame, skip_frame)
     # print(f"loop_arr: {loop_arr}")

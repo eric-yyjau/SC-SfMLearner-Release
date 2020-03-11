@@ -76,6 +76,7 @@ parser.add_argument('--with-mask', action='store_true',
 parser.add_argument('--name', dest='name', type=str, required=True,
                     help='name of the experiment, checkpoints are stored in checpoints/name')
 parser.add_argument("--skip_frame", default=1, type=int, help="The time differences between frames")
+parser.add_argument("--keyframe", default="", type=str, help="File with keyframe stamps")
 
 best_error = -1
 n_iter = 0
@@ -119,7 +120,8 @@ def main():
         seed=args.seed,
         train=True,
         sequence_length=args.sequence_length,
-        skip_frame=args.skip_frame
+        skip_frame=args.skip_frame, 
+        keyframe=args.keyframe
     )
 
     # if no Groundtruth is avalaible, Validation set is the same type as training set to measure photometric loss from warping

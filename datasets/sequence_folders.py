@@ -30,10 +30,14 @@ class SequenceFolder(data.Dataset):
         self.transform = transform
         self.crawl_folders(sequence_length, skip_frame)
 
-    def crawl_folders(self, sequence_length, skip_frame=1):
+    def crawl_folders(self, sequence_length, skip_frame=1, keyframe=None):
         sequence_set = []
         demi_length = (sequence_length-1)//2
         shifts = list(range(-demi_length, demi_length + 1, skip_frame))
+        if keyframe is not None:
+            from utils import load_keyframe
+            kf_arr = load_keyframe(keyframe)
+            pass
         # print(f"shifts: {shifts}")
         shifts.pop(demi_length)
         for scene in self.scenes:
@@ -43,8 +47,24 @@ class SequenceFolder(data.Dataset):
                 continue
             for i in range(demi_length, len(imgs)-demi_length):
                 sample = {'intrinsics': intrinsics, 'tgt': imgs[i], 'ref_imgs': []}
-                for j in shifts:
+                # keep an eye in the keyframe list
+                idx_kf = 1
+                kf_end = len(kf_arr)
+                # regular add frames
+                if i > kf_arr[0] and i < kf_arr[-1]:
+                    while (idx_kf<kf_end):
+                        if i < kf_arr[idx_kf]:
+                            break
+                        else:
+                            idx_kf += 1
+                    tmp_shifts = list(range(kf_arr[idx_kf-1]-i, kf_arr[idx_kf]-i))
+                else:
+                    tmp_shifts = shifts
+                print(f"tmp_shifts: {tmp_shifts}")
+
+                for j in tmp_shifts:
                     sample['ref_imgs'].append(imgs[i+j])
+
                 sequence_set.append(sample)
         random.shuffle(sequence_set)
         self.samples = sequence_set

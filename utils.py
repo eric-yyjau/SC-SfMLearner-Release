@@ -9,6 +9,13 @@ from matplotlib import cm
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 
+# from utils import load_keyframe
+def load_keyframe(file):
+    stamps = np.genfromtxt(file, dtype=float)
+    stamps = stamps[:,:1].reshape(-1,) - 1 # to offset the counting system starting from 1
+    loop_arr = stamps.astype(int)
+    return loop_arr
+
 def high_res_colormap(low_res_cmap, resolution=1000, max_value=1):
     # Construct the list colormap, with interpolated values for higer resolution
     # For a linear segmented colormap, you can just specify the number of point in
