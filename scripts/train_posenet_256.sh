@@ -28,7 +28,7 @@ python train.py $TRAIN_SET \
 --with-mask \
 --with-ssim \
 --skip_frame 2 \
---name posenet_test \
---keyframe /home/yoyee/Documents/deep_keyframe/results/orbslam2_key_t/kitti/10/10.txt_key
+--name posenet_256_wKeyframe \
+--keyframe yes
 # --pretrained-disp checkpoints/posenet_256_seqLen7/80/dispnet_model_best.pth.tar \
 # --pretrained-pose  checkpoints/posenet_256_seqLen7/80/exp_pose_model_best.pth.tar \

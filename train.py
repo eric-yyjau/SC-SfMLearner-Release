@@ -83,6 +83,13 @@ n_iter = 0
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+def dump_config(config, output_dir):
+    # Path(output_dir).mkdir(exist_ok=True, parents=True)
+    import os, yaml
+    Path(output_dir).makedirs_p()
+    with open(os.path.join(output_dir, 'config.yml'), 'w') as f:
+        yaml.dump(config, f, default_flow_style=False)
+    pass
 
 def main():
     global best_error, n_iter, device
@@ -94,6 +101,7 @@ def main():
         from datasets.sequence_folders import SequenceFolder
     timestamp = datetime.datetime.now().strftime("%m-%d-%H:%M")
     args.save_path = 'checkpoints'/Path(args.name)/timestamp
+    dump_config(args, args.save_path)
     print('=> will save everything to {}'.format(args.save_path))
     args.save_path.makedirs_p()
     torch.manual_seed(args.seed)
@@ -138,6 +146,7 @@ def main():
             seed=args.seed,
             train=False,
             sequence_length=args.sequence_length,
+            keyframe=args.keyframe
         )
     print('{} samples found in {} train scenes'.format(
         len(train_set), len(train_set.scenes)))

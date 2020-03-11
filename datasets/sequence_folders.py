@@ -34,33 +34,38 @@ class SequenceFolder(data.Dataset):
         sequence_set = []
         demi_length = (sequence_length-1)//2
         shifts = list(range(-demi_length, demi_length + 1, skip_frame))
-        if keyframe is not None:
-            from utils import load_keyframe
-            kf_arr = load_keyframe(keyframe)
-            pass
         # print(f"shifts: {shifts}")
         shifts.pop(demi_length)
         for scene in self.scenes:
             intrinsics = np.genfromtxt(scene/'cam.txt').astype(np.float32).reshape((3, 3))
             imgs = sorted(scene.files('*.jpg'))
+            if keyframe is not None:
+                from utils import load_keyframe
+                base_path = "./datasets/kitti_keyframe/orbslam2_key/"
+                seq = Path(scene).name[:2]
+                file = f"{base_path}/{seq}/{seq}.txt_key"
+                print(f"keyframe file: {file}")
+                kf_arr = load_keyframe(file)
+                idx_kf = 1
+                kf_end = len(kf_arr)
+
             if len(imgs) < sequence_length:
                 continue
             for i in range(demi_length, len(imgs)-demi_length):
                 sample = {'intrinsics': intrinsics, 'tgt': imgs[i], 'ref_imgs': []}
                 # keep an eye in the keyframe list
-                idx_kf = 1
-                kf_end = len(kf_arr)
+                
                 # regular add frames
-                if i > kf_arr[0] and i < kf_arr[-1]:
+                if keyframe is not None and i > kf_arr[0] and i < kf_arr[-1]:
                     while (idx_kf<kf_end):
                         if i < kf_arr[idx_kf]:
                             break
                         else:
                             idx_kf += 1
-                    tmp_shifts = list(range(kf_arr[idx_kf-1]-i, kf_arr[idx_kf]-i))
+                    tmp_shifts = list(range(kf_arr[idx_kf-1]-i, kf_arr[idx_kf]-i+1))
+                    # print(f"tmp_shifts {scene}, {i}: {tmp_shifts}")
                 else:
                     tmp_shifts = shifts
-                print(f"tmp_shifts: {tmp_shifts}")
 
                 for j in tmp_shifts:
                     sample['ref_imgs'].append(imgs[i+j])
