@@ -12,6 +12,6 @@
 
 # # for kitti odometry dataset
 ### on theia
-DATASET=/data/kitti/odometry/sequences/
+DATASET=/data/kitti/odometry/
 TRAIN_SET=/newfoundland/yyjau/kitti/scsfm_dump/kitti_vo_256/
 python data/prepare_train_data.py $DATASET --dataset-format 'kitti_odom' --dump-root $TRAIN_SET --width 832 --height 256 --num-threads 4
