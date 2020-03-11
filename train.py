@@ -75,7 +75,7 @@ parser.add_argument('--with-mask', action='store_true',
                     help='use the the mask for handling moving objects and occlusions')
 parser.add_argument('--name', dest='name', type=str, required=True,
                     help='name of the experiment, checkpoints are stored in checpoints/name')
-
+parser.add_argument("--skip_frame", default=1, type=int, help="The time differences between frames")
 
 best_error = -1
 n_iter = 0
@@ -86,6 +86,7 @@ device = torch.device(
 def main():
     global best_error, n_iter, device
     args = parser.parse_args()
+    print(f"{args}")
     if args.dataset_format == 'stacked':
         from datasets.stacked_sequence_folders import SequenceFolder
     elif args.dataset_format == 'sequential':
@@ -110,13 +111,15 @@ def main():
     valid_transform = custom_transforms.Compose(
         [custom_transforms.ArrayToTensor(), normalize])
 
+    print(f"seq length: {args.sequence_length}, skip frames: {args.skip_frame}")
     print("=> fetching scenes in '{}'".format(args.data))
     train_set = SequenceFolder(
         args.data,
         transform=train_transform,
         seed=args.seed,
         train=True,
-        sequence_length=args.sequence_length
+        sequence_length=args.sequence_length,
+        skip_frame=args.skip_frame
     )
 
     # if no Groundtruth is avalaible, Validation set is the same type as training set to measure photometric loss from warping
