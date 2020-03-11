@@ -18,11 +18,11 @@ def upconv(in_planes, out_planes):
 
 class PoseNet(nn.Module):
 
-    def __init__(self):
+    def __init__(self, channel=6):
         super(PoseNet, self).__init__()
 
         conv_planes = [16, 32, 64, 128, 256, 256, 256]
-        self.conv1 = conv(6, conv_planes[0], kernel_size=7)
+        self.conv1 = conv(channel, conv_planes[0], kernel_size=7)
         self.conv2 = conv(conv_planes[0], conv_planes[1], kernel_size=5)
         self.conv3 = conv(conv_planes[1], conv_planes[2])
         self.conv4 = conv(conv_planes[2], conv_planes[3])

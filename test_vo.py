@@ -28,6 +28,7 @@ parser.add_argument("--sequence", default='09',
                     type=str, help="sequence to test")
 parser.add_argument("--save_video", action="store_true", help="save as video")
 parser.add_argument("--skip_frame", default=1, type=int, help="The time differences between frames")
+parser.add_argument("--keyframe", default="", type=str, help="File with keyframe stamps")
 
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -114,9 +115,24 @@ def main():
 
     skip_frame = args.skip_frame
     time_stamps = [0]
-    for iter in tqdm(range(0, n - skip_frame, skip_frame)):
+    if args.keyframe != "":
+        stamps = np.genfromtxt(args.keyframe, dtype=float)
+        stamps = stamps[:,:1].reshape(-1,) - 1 # to offset the counting system starting from 1
+        loop_arr = stamps.astype(int)
+    else:
+        loop_arr = range(0, n - skip_frame, skip_frame)
+    # print(f"loop_arr: {loop_arr}")
+
+    for iter in tqdm(loop_arr):
         tensor_img2 = load_tensor_image(test_files[iter+skip_frame], args)
         pose = pose_net(tensor_img1, tensor_img2)
+        ## use depth net
+
+        ## warp depth and image
+
+        ## feed into pose_prediction
+
+
         pose_mat = pose_vec2mat(pose).squeeze(0).cpu().numpy()
         pose_mat = np.vstack([pose_mat, np.array([0, 0, 0, 1])])
         global_pose = global_pose @ np.linalg.inv(pose_mat)
