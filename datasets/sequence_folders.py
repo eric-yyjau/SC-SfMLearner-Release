@@ -30,7 +30,7 @@ class SequenceFolder(data.Dataset):
         self.transform = transform
         self.crawl_folders(sequence_length, skip_frame, keyframe)
 
-    def crawl_folders(self, sequence_length, skip_frame=1, keyframe=None):
+    def crawl_folders(self, sequence_length, skip_frame=1, keyframe="./datasets/kitti_keyframe/orbslam2_key/"):
         sequence_set = []
         demi_length = (sequence_length-1)//2
         shifts = list(range(-demi_length, demi_length + 1, skip_frame))
@@ -41,7 +41,8 @@ class SequenceFolder(data.Dataset):
             imgs = sorted(scene.files('*.jpg'))
             if keyframe is not None:
                 from utils import load_keyframe
-                base_path = "./datasets/kitti_keyframe/orbslam2_key/"
+                # base_path = "./datasets/kitti_keyframe/orbslam2_key/"
+                base_path = keyframe
                 seq = Path(scene).name[:2]
                 file = f"{base_path}/{seq}/{seq}.txt_key"
                 print(f"keyframe file: {file}")

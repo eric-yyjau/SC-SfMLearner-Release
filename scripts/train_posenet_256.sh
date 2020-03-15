@@ -29,6 +29,6 @@ python train.py $TRAIN_SET \
 --with-ssim \
 --skip_frame 2 \
 --name posenet_256_wKeyframe \
---keyframe yes
+--keyframe ./datasets/kitti_keyframe/orbslam2_key/
 # --pretrained-disp checkpoints/posenet_256_seqLen7/80/dispnet_model_best.pth.tar \
 # --pretrained-pose  checkpoints/posenet_256_seqLen7/80/exp_pose_model_best.pth.tar \

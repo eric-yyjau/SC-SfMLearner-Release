@@ -12,7 +12,9 @@ from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 # from utils import load_keyframe
 def load_keyframe(file):
     stamps = np.genfromtxt(file, dtype=float)
-    stamps = stamps[:,:1].reshape(-1,) - 1 # to offset the counting system starting from 1
+    if np.ndim(stamps) == 2:
+        stamps = stamps[:,:1]
+    stamps.reshape(-1,) - 1 # to offset the counting system starting from 1
     loop_arr = stamps.astype(int)
     return loop_arr
 

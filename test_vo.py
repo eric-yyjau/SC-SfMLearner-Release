@@ -29,6 +29,7 @@ parser.add_argument("--sequence", default='09',
 parser.add_argument("--save_video", action="store_true", help="save as video")
 parser.add_argument("--skip_frame", default=1, type=int, help="The time differences between frames")
 parser.add_argument("--keyframe", default="", type=str, help="File with keyframe stamps")
+parser.add_argument("--all_frame", action="store_true", help="export all frames based on keyframes")
 
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -115,32 +116,73 @@ def main():
 
     skip_frame = args.skip_frame
     time_stamps = [0]
+    # check if there's keyframe file
     if args.keyframe != "":
         from utils import load_keyframe
-        loop_arr = load_keyframe(args.keyframe)
+        kf_arr = load_keyframe(args.keyframe)
+        print(f"keyframe length: {len(kf_arr)}, percent: {len(kf_arr)/n}")
     else:
-        loop_arr = range(0, n - skip_frame, skip_frame)
+        kf_arr = range(0, n - skip_frame, skip_frame)
+    
+    # use all frames for estimation
+    if args.all_frame:
+        # assert args.skip_frame == 1
+        loop_arr = range(0, n - 1)
+        # make sure keyframe covers all frames
+        kf_arr = np.concatenate((np.arange(kf_arr[0]), kf_arr, np.arange(kf_arr[-1]+1, n)), axis=0)
+        key_pose = global_pose
+    else:
+        loop_arr = kf_arr
     # print(f"loop_arr: {loop_arr}")
 
+    idx_kf = 0
+    tensor_img2 = None
+    idx_img2 = -1
     for iter in tqdm(loop_arr):
-        tensor_img2 = load_tensor_image(test_files[iter+skip_frame], args)
+        if args.all_frame:
+            # point to the correct idx. if idx moves, load image again
+            if kf_arr[idx_kf] <= iter and iter < kf_arr[idx_kf+1]:
+                # keep this frame
+                # print(f"keep frame: {kf_arr[idx_kf]}, iter: {iter}")
+                pass
+            else:
+                idx_kf += 1
+                # assert kf_arr[idx_kf] < iter
+                # print(f"update frame: {kf_arr[idx_kf]}, iter: {iter}")
+                # load image 1
+                idx_img1 = kf_arr[idx_kf]
+                if idx_img1 == idx_img2:
+                    tensor_img1 = tensor_img2
+                else:
+                    tensor_img1 = load_tensor_image(test_files[idx_img1], args)
+                # update key_pose
+                key_pose = global_pose
+
+        # same process
+        ## load image2
+        idx_img2 = iter + 1
+        if args.all_frame:
+            # step = 1 for all frames
+            tensor_img2 = load_tensor_image(test_files[iter+1], args)
+        else:
+            tensor_img2 = load_tensor_image(test_files[iter+skip_frame], args)
+            idx_img2 = iter + skip_frame
+
         pose = pose_net(tensor_img1, tensor_img2)
-        ## use depth net
-
-        ## warp depth and image
-
-        ## feed into pose_prediction
-
-
         pose_mat = pose_vec2mat(pose).squeeze(0).cpu().numpy()
         pose_mat = np.vstack([pose_mat, np.array([0, 0, 0, 1])])
-        global_pose = global_pose @ np.linalg.inv(pose_mat)
+        
+        if args.all_frame:
+            global_pose = key_pose @ np.linalg.inv(pose_mat)
+            poses.append(global_pose[0:3, :].reshape(1, 12))
+            time_stamps.append(iter+1)
+        else:
+            global_pose = global_pose @ np.linalg.inv(pose_mat)
+            poses.append(global_pose[0:3, :].reshape(1, 12))
+            time_stamps.append(iter+skip_frame)
 
-        poses.append(global_pose[0:3, :].reshape(1, 12))
-        time_stamps.append(iter+skip_frame)
-
-        # update
-        tensor_img1 = tensor_img2
+            # update
+            tensor_img1 = tensor_img2
 
 
     poses = np.concatenate(poses, axis=0)
