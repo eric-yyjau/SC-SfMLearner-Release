@@ -14,7 +14,7 @@ def load_keyframe(file):
     stamps = np.genfromtxt(file, dtype=float)
     if np.ndim(stamps) == 2:
         stamps = stamps[:,:1]
-    stamps.reshape(-1,) - 1 # to offset the counting system starting from 1
+    stamps = stamps.reshape(-1,) - 1 # to offset the counting system starting from 1
     loop_arr = stamps.astype(int)
     return loop_arr
 
