@@ -77,6 +77,7 @@ parser.add_argument('--name', dest='name', type=str, required=True,
                     help='name of the experiment, checkpoints are stored in checpoints/name')
 parser.add_argument("--skip_frame", default=1, type=int, help="The time differences between frames")
 parser.add_argument("--keyframe", default="", type=str, help="Folder path with keyframe stamps")
+parser.add_argument("--lstm", action='store_true', help="use lstm network")
 
 best_error = -1
 n_iter = 0
@@ -277,6 +278,7 @@ def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger,
     data_time = AverageMeter()
     losses = AverageMeter(precision=4)
     w1, w2, w3 = args.photo_loss_weight, args.smooth_loss_weight, args.geometry_consistency_weight
+    lstm = True if args.get("lstm") else False
 
     # switch to train mode
     disp_net.train()
@@ -295,13 +297,25 @@ def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger,
         intrinsics = intrinsics.to(device)
 
         # compute output
-        tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs)
-        poses, poses_inv = compute_pose_with_inv(pose_net, tgt_img, ref_imgs)
+        if lstm:
+            pose_net.init_cells()
+            # [ref_imgs, tgt_img]
+            ref_tgt_imgs = ref_imgs.extend(tgt_img)
+            tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs)
+            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_tgt_imgs)
 
-        loss_1, loss_3 = compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, ref_depths,
+            loss_1, loss_3 = compute_photo_and_geometry_loss_lstm(ref_tgt_imgs[1:], ref_imgs, intrinsics, tgt_depth, ref_depths,
                                                          poses, poses_inv, args)
 
-        loss_2 = compute_smooth_loss(tgt_depth, tgt_img, ref_depths, ref_imgs)
+            loss_2 = compute_smooth_loss(tgt_depth, tgt_img, ref_depths, ref_imgs)
+        else:
+            tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs)
+            poses, poses_inv = compute_pose_with_inv(pose_net, tgt_img, ref_imgs)
+
+            loss_1, loss_3 = compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, ref_depths,
+                                                         poses, poses_inv, args)
+
+            loss_2 = compute_smooth_loss(tgt_depth, tgt_img, ref_depths, ref_imgs)
 
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3
 
@@ -445,6 +459,22 @@ def compute_pose_with_inv(pose_net, tgt_img, ref_imgs):
     for ref_img in ref_imgs:
         poses.append(pose_net(tgt_img, ref_img))
         poses_inv.append(pose_net(ref_img, tgt_img))
+
+    return poses, poses_inv
+
+def compute_pose_with_inv_lstm(pose_net, ref_imgs):
+    """
+    loop through images and get consecutive relative poses
+    """
+    poses = []
+    poses_inv = []
+    for ref_img in ref_imgs:
+        poses.append(pose_net(ref_img))
+    poses = poses[1:] # discard the init frame
+    # reverse order
+    for ref_img in ref_imgs[::-1]: 
+        poses_inv.append(pose_net(ref_img))
+    poses_inv = poses_inv[1:][::-1] # discard the first pose, reverse the poses
 
     return poses, poses_inv
 

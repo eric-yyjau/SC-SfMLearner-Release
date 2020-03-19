@@ -136,3 +136,23 @@ class DispNet(nn.Module):
             return disp1, disp2, disp3, disp4, disp5, disp6
         else:
             return disp1
+
+def main():
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = DispNet()
+    model = model.to(device)
+
+
+    # check keras-like model summary using torchsummary
+    from torchsummary import summary
+    summary(model, input_size=(3, 240, 320))
+
+    ## test
+    image = torch.zeros((1,3,120, 160))
+    outs = model(image.to(device))
+    print("outs: ", list(outs))
+
+
+if __name__ == "__main__":
+    main()
+    pass

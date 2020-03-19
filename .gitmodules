@@ -1,0 +1,3 @@
+[submodule "Convolutional_LSTM_PyTorch"]
+	path = Convolutional_LSTM_PyTorch
+	url = git@github.com:automan000/Convolutional_LSTM_PyTorch.git

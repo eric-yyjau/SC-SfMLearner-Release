@@ -36,6 +36,32 @@ def compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, re
 
     return photo_loss, geometry_loss
 
+def compute_photo_and_geometry_loss_lstm(tgt_imgs, ref_imgs, intrinsics, tgt_depth, ref_depths, poses, poses_inv, args):
+
+    photo_loss = 0
+    geometry_loss = 0
+
+    num_scales = min(len(tgt_depth), args.num_scales)
+    for tgt_img, ref_img, ref_depth, pose, pose_inv in zip(tgt_imgs, ref_imgs, ref_depths, poses, poses_inv):
+        for s in range(num_scales):
+            b, _, h, w = tgt_depth[s].size()
+            downscale = tgt_img.size(2)/h
+
+            tgt_img_scaled = F.interpolate(tgt_img, (h, w), mode='area')
+            ref_img_scaled = F.interpolate(ref_img, (h, w), mode='area')
+            intrinsic_scaled = torch.cat(
+                (intrinsics[:, 0:2]/downscale, intrinsics[:, 2:]), dim=1)
+
+            photo_loss1, geometry_loss1 = compute_pairwise_loss(
+                tgt_img_scaled, ref_img_scaled, tgt_depth[s], ref_depth[s], pose, intrinsic_scaled, args)
+            photo_loss2, geometry_loss2 = compute_pairwise_loss(
+                ref_img_scaled, tgt_img_scaled, ref_depth[s], tgt_depth[s], pose_inv, intrinsic_scaled, args)
+
+            photo_loss += (photo_loss1 + photo_loss2)
+            geometry_loss += (geometry_loss1 + geometry_loss2)
+
+    return photo_loss, geometry_loss
+
 
 def compute_pairwise_loss(tgt_img, ref_img, tgt_depth, ref_depth, pose, intrinsic, args):
 
