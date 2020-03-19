@@ -77,7 +77,7 @@ parser.add_argument('--name', dest='name', type=str, required=True,
                     help='name of the experiment, checkpoints are stored in checpoints/name')
 parser.add_argument("--skip_frame", default=1, type=int, help="The time differences between frames")
 parser.add_argument("--keyframe", default="", type=str, help="Folder path with keyframe stamps")
-parser.add_argument("--lstm", action='store_true', help="use lstm network")
+parser.add_argument("--lstm", action='store_true', default=False, help="use lstm network")
 
 best_error = -1
 n_iter = 0
@@ -130,7 +130,8 @@ def main():
         train=True,
         sequence_length=args.sequence_length,
         skip_frame=args.skip_frame, 
-        keyframe=args.keyframe
+        keyframe=args.keyframe,
+        tgt_img_last=args.lstm
     )
 
     # if no Groundtruth is avalaible, Validation set is the same type as training set to measure photometric loss from warping
@@ -147,7 +148,8 @@ def main():
             seed=args.seed,
             train=False,
             sequence_length=args.sequence_length,
-            keyframe=args.keyframe
+            keyframe=args.keyframe,
+            tgt_img_last=args.lstm
         )
     print('{} samples found in {} train scenes'.format(
         len(train_set), len(train_set.scenes)))
@@ -298,7 +300,7 @@ def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger,
 
         # compute output
         if lstm:
-            pose_net.init_cells()
+            pose_net.init_lstm_states(tgt_img)
             # [ref_imgs, tgt_img]
             ref_tgt_imgs = ref_imgs.extend(tgt_img)
             tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs)

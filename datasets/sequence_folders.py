@@ -19,9 +19,15 @@ class SequenceFolder(data.Dataset):
         .
 
         transform functions must take in a list a images and a numpy array (usually intrinsics matrix)
+
+        Input:
+            tgt_img_last: put tgt_img as the last frame. Used for LSTM network.
     """
 
-    def __init__(self, root, seed=None, train=True, sequence_length=3, transform=None, target_transform=None, skip_frame=1, keyframe=None):
+    def __init__(self, root, seed=None, train=True, sequence_length=3, 
+                transform=None, target_transform=None, skip_frame=1, 
+                keyframe=None, tgt_img_last=False
+    ):
         np.random.seed(seed)
         random.seed(seed)
         self.root = Path(root)
@@ -70,6 +76,9 @@ class SequenceFolder(data.Dataset):
 
                 for j in tmp_shifts:
                     sample['ref_imgs'].append(imgs[i+j])
+                if tgt_img_last:
+                    sample['tgt'] = sample['ref_imgs'][-1]
+                    # sample['ref_imgs'] = sample['ref_imgs'][:-1]
 
                 sequence_set.append(sample)
         random.shuffle(sequence_set)
