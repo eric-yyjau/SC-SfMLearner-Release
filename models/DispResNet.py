@@ -139,6 +139,7 @@ class DispResNet(nn.Module):
                     m.bias.data.zero_()
 
     def forward(self, x):
+        # print(f"x: {x.shape}")
         out_conv1 = self.conv1(x)
         out_conv2 = self.conv2(out_conv1)
         out_conv3 = self.conv3(out_conv2)

@@ -13,7 +13,7 @@ import custom_transforms
 
 import models
 from utils import save_checkpoint
-from loss_functions import compute_smooth_loss, compute_photo_and_geometry_loss, compute_errors
+from loss_functions import compute_smooth_loss, compute_photo_and_geometry_loss, compute_photo_and_geometry_loss_lstm, compute_errors
 from logger import TermLogger, AverageMeter
 from tensorboardX import SummaryWriter
 
@@ -78,6 +78,9 @@ parser.add_argument('--name', dest='name', type=str, required=True,
 parser.add_argument("--skip_frame", default=1, type=int, help="The time differences between frames")
 parser.add_argument("--keyframe", default="", type=str, help="Folder path with keyframe stamps")
 parser.add_argument("--lstm", action='store_true', default=False, help="use lstm network")
+parser.add_argument("--debug", action='store_true', default=False, help="Debug!")
+parser.add_argument("--dataParallel", action='store_true', default=False, 
+                    help="pytorch.DataParallel. Training and testing should be done in the same way")
 
 best_error = -1
 n_iter = 0
@@ -169,7 +172,11 @@ def main():
     print("=> creating model")
 
     disp_net = getattr(models, args.dispnet)().to(device)
-    pose_net = models.PoseNet().to(device)
+    if args.lstm:
+        from models.PoseLstmNet import PoseLstmNet
+        pose_net = PoseLstmNet().to(device)
+    else:
+        pose_net = models.PoseNet().to(device)
 
     if args.pretrained_pose:
         print("=> using pre-trained weights for PoseNet")
@@ -186,8 +193,9 @@ def main():
         disp_net.init_weights()
 
     cudnn.benchmark = True
-    disp_net = torch.nn.DataParallel(disp_net)
-    pose_net = torch.nn.DataParallel(pose_net)
+    if args.dataParallel:
+        disp_net = torch.nn.DataParallel(disp_net)
+        pose_net = torch.nn.DataParallel(pose_net)
 
     print('=> setting adam solver')
 
@@ -227,16 +235,19 @@ def main():
         logger.valid_writer.write(' * Avg {}'.format(error_string))
 
     for epoch in range(args.epochs):
-        logger.epoch_bar.update(epoch)
+        if not args.debug:
+            logger.epoch_bar.update(epoch)
 
         # train for one epoch
-        logger.reset_train_bar()
+        if not args.debug:
+            logger.reset_train_bar()
         train_loss = train(args, train_loader, disp_net, pose_net,
                            optimizer, args.epoch_size, logger, training_writer)
         logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
 
         # evaluate on validation set
-        logger.reset_valid_bar()
+        if not args.debug:
+            logger.reset_valid_bar()
         if args.with_gt:
             errors, error_names = validate_with_gt(
                 args, val_loader, disp_net, epoch, logger)
@@ -280,14 +291,16 @@ def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger,
     data_time = AverageMeter()
     losses = AverageMeter(precision=4)
     w1, w2, w3 = args.photo_loss_weight, args.smooth_loss_weight, args.geometry_consistency_weight
-    lstm = True if args.get("lstm") else False
+    lstm = args.lstm
+    debug = args.debug
 
     # switch to train mode
     disp_net.train()
     pose_net.train()
 
     end = time.time()
-    logger.train_bar.update(0)
+    if not debug:
+        logger.train_bar.update(0)
 
     for i, (tgt_img, ref_imgs, intrinsics, intrinsics_inv) in enumerate(train_loader):
         log_losses = i > 0 and n_iter % args.print_freq == 0
@@ -297,19 +310,20 @@ def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger,
         tgt_img = tgt_img.to(device)
         ref_imgs = [img.to(device) for img in ref_imgs]
         intrinsics = intrinsics.to(device)
+        # print(f"tgt_img: {tgt_img.shape}, ref_imgs: {ref_imgs[-1].shape}, {len(ref_imgs)}")
 
         # compute output
         if lstm:
             pose_net.init_lstm_states(tgt_img)
-            # [ref_imgs, tgt_img]
-            ref_tgt_imgs = ref_imgs.extend(tgt_img)
-            tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs)
+            # ref_tgt_imgs = [ref_imgs, tgt_img]
+            ref_tgt_imgs = ref_imgs
+            tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs[:-1])
             poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_tgt_imgs)
 
-            loss_1, loss_3 = compute_photo_and_geometry_loss_lstm(ref_tgt_imgs[1:], ref_imgs, intrinsics, tgt_depth, ref_depths,
+            loss_1, loss_3 = compute_photo_and_geometry_loss_lstm(ref_tgt_imgs[1:], ref_imgs[:-1], intrinsics, tgt_depth, ref_depths,
                                                          poses, poses_inv, args)
 
-            loss_2 = compute_smooth_loss(tgt_depth, tgt_img, ref_depths, ref_imgs)
+            loss_2 = compute_smooth_loss(tgt_depth, tgt_img, ref_depths, ref_imgs[:-1])
         else:
             tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs)
             poses, poses_inv = compute_pose_with_inv(pose_net, tgt_img, ref_imgs)
@@ -343,7 +357,8 @@ def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger,
             writer = csv.writer(csvfile, delimiter='\t')
             writer.writerow([loss_1.item(), loss_2.item(),
                              loss_3.item(), loss.item()])
-        logger.train_bar.update(i+1)
+        if not debug:
+            logger.train_bar.update(i+1)
         if i % args.print_freq == 0:
             logger.train_writer.write(
                 'Train: Time {} Data {} Loss {}'.format(batch_time, data_time, losses))

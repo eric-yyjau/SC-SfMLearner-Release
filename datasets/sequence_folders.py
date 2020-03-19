@@ -34,18 +34,22 @@ class SequenceFolder(data.Dataset):
         scene_list_path = self.root/'train.txt' if train else self.root/'val.txt'
         self.scenes = [self.root/folder[:-1] for folder in open(scene_list_path)]
         self.transform = transform
+        self.tgt_img_last = tgt_img_last
+        # get entries
         self.crawl_folders(sequence_length, skip_frame, keyframe)
 
     def crawl_folders(self, sequence_length, skip_frame=1, keyframe="./datasets/kitti_keyframe/orbslam2_key/"):
         sequence_set = []
         demi_length = (sequence_length-1)//2
         shifts = list(range(-demi_length, demi_length + 1, skip_frame))
-        # print(f"shifts: {shifts}")
-        shifts.pop(demi_length)
+        ### I don't think we need to remove the last one in the shift list
+        # shifts.pop(demi_length)
+        (f"shifts: {shifts}")
+        if_keyframe = False if keyframe is None or keyframe == "" else True
         for scene in self.scenes:
             intrinsics = np.genfromtxt(scene/'cam.txt').astype(np.float32).reshape((3, 3))
             imgs = sorted(scene.files('*.jpg'))
-            if keyframe is not None:
+            if if_keyframe:
                 from utils import load_keyframe
                 # base_path = "./datasets/kitti_keyframe/orbslam2_key/"
                 base_path = keyframe
@@ -63,7 +67,7 @@ class SequenceFolder(data.Dataset):
                 # keep an eye in the keyframe list
                 
                 # regular add frames
-                if keyframe is not None and i > kf_arr[0] and i < kf_arr[-1]:
+                if if_keyframe and i > kf_arr[0] and i < kf_arr[-1]:
                     while (idx_kf<kf_end):
                         if i < kf_arr[idx_kf]:
                             break
@@ -76,8 +80,9 @@ class SequenceFolder(data.Dataset):
 
                 for j in tmp_shifts:
                     sample['ref_imgs'].append(imgs[i+j])
-                if tgt_img_last:
+                if self.tgt_img_last:
                     sample['tgt'] = sample['ref_imgs'][-1]
+                    # send "sample['ref_imgs'][:-1]" to the model
                     # sample['ref_imgs'] = sample['ref_imgs'][:-1]
 
                 sequence_set.append(sample)
@@ -87,7 +92,7 @@ class SequenceFolder(data.Dataset):
     def __getitem__(self, index):
         sample = self.samples[index]
         tgt_img = load_as_float(sample['tgt'])
-        print(f"tgt_img: {tgt_img.shape}")
+        # print(f"tgt_img: {tgt_img.shape}")
         ref_imgs = [load_as_float(ref_img) for ref_img in sample['ref_imgs']]
         if self.transform is not None:
             imgs, intrinsics = self.transform([tgt_img] + ref_imgs, np.copy(sample['intrinsics']))

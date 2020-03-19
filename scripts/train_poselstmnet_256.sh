@@ -6,7 +6,9 @@ python train.py $TRAIN_SET \
 -b4 -s0.1 -c0.5 --epoch-size 1000 --sequence-length 5 \
 --with-mask \
 --with-ssim \
---name poselstmnet_256_test \
+--name poselstmnet_256_v0.1 \
+--lstm
+# --debug \
 # --keyframe ./datasets/kitti_keyframe/orbslam2_key/
 # --pretrained-disp checkpoints/posenet_256_seqLen7/80/dispnet_model_best.pth.tar \
 # --pretrained-pose  checkpoints/posenet_256_seqLen7/80/exp_pose_model_best.pth.tar \

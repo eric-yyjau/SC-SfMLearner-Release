@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch import sigmoid
 from torch.nn.init import xavier_uniform_, zeros_
 
-from Convolutional_LSTM_PyTorch.convolution_lstm import ConvLSTMCell # from https://github.com/automan000/Convolutional_LSTM_PyTorch
+from .Convolutional_LSTM_PyTorch.convolution_lstm import ConvLSTMCell # from https://github.com/automan000/Convolutional_LSTM_PyTorch
 import math
 
 def conv(in_planes, out_planes, kernel_size=3):
@@ -69,7 +69,7 @@ class PoseLstmNet(nn.Module):
             ratio = self.lstm_width_ratio[i]
             (h, c) = layer.init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
                                             shape=(math.ceil(height/ratio), math.ceil(width/ratio)) )
-            print(f"h: {h.shape}")
+            # print(f"h: {h.shape}")
             self.lstm_internal_states.append((h, c))
 
 
@@ -111,7 +111,8 @@ def main():
 
     # check keras-like model summary using torchsummary
     from torchsummary import summary
-    width, height = 320, 240
+    # width, height = 320, 240 # (256, 832, 3)
+    height, width = 256, 832 # (256, 832, 3)
     model.init_lstm_states(torch.zeros((1,3, height, width)) )
     # summary(model, input_size=[(3, 240, 320), (3, 240, 320)])
     summary(model, input_size=(3, height, width) )
