@@ -55,3 +55,48 @@ class PoseNet(nn.Module):
         pose = 0.01 * pose.view(pose.size(0), 6)
  
         return pose
+
+class PoseNet_N_frame(PoseNet):
+    def __init__(self, channel=6, nframes=2):
+        super(PoseNet_N_frame, self).__init__()
+        # channel = 3*N
+        # output: 6*N, if N =3,  output 2 poses
+        # if N =5, output T12, 
+        pass
+
+    def forward(self, target_image, ref_img):
+        input = [target_image, ref_img]
+        input = torch.cat(input, 1)
+        out_conv1 = self.conv1(input)
+        out_conv2 = self.conv2(out_conv1)
+        out_conv3 = self.conv3(out_conv2)
+        out_conv4 = self.conv4(out_conv3)
+        out_conv5 = self.conv5(out_conv4)
+        out_conv6 = self.conv6(out_conv5)
+        out_conv7 = self.conv7(out_conv6)
+
+        pose = self.pose_pred(out_conv7)
+        pose = pose.mean(3).mean(2)
+        pose = 0.01 * pose.view(pose.size(0), 6)
+ 
+        return pose
+
+def main():
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = PoseNet()
+    model = model.to(device)
+
+
+    # check keras-like model summary using torchsummary
+    from torchsummary import summary
+    summary(model, input_size=[(3, 240, 320), (3, 240, 320)])
+
+    ## test
+    image = torch.zeros((1,3,120, 160))
+    outs = model(image.to(device), image.to(device))
+    print("outs: ", list(outs))
+
+
+if __name__ == "__main__":
+    main()
+    pass
