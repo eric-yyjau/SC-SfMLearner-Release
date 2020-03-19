@@ -30,12 +30,13 @@ class SequenceFolder(data.Dataset):
         self.transform = transform
         self.crawl_folders(sequence_length, skip_frame, keyframe)
 
-    def crawl_folders(self, sequence_length, skip_frame=1, keyframe="./datasets/kitti_keyframe/orbslam2_key/"):
+    def crawl_folders(self, sequence_length, skip_frame=1, keyframe="./datasets/kitti_keyframe/orbslam2_key/", max_len = 5):
         sequence_set = []
         demi_length = (sequence_length-1)//2
         shifts = list(range(-demi_length, demi_length + 1, skip_frame))
         # print(f"shifts: {shifts}")
         shifts.pop(demi_length)
+        
         for scene in self.scenes:
             intrinsics = np.genfromtxt(scene/'cam.txt').astype(np.float32).reshape((3, 3))
             imgs = sorted(scene.files('*.jpg'))
@@ -63,8 +64,10 @@ class SequenceFolder(data.Dataset):
                             break
                         else:
                             idx_kf += 1
-                    tmp_shifts = list(range(kf_arr[idx_kf-1]-i, kf_arr[idx_kf]-i+1))
-                    # print(f"tmp_shifts {scene}, {i}: {tmp_shifts}")
+                    tmp_shifts = list(range(-1*(kf_arr[idx_kf]-i), kf_arr[idx_kf]-i+1))
+                    if len(tmp_shifts) > max_len:
+                        tmp_shifts = random.choices(tmp_shifts, k=max_len)
+                    print(f"tmp_shifts {scene}, {i}: {tmp_shifts}")
                 else:
                     tmp_shifts = shifts
 
