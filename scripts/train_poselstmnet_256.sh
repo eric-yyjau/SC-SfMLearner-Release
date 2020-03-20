@@ -7,7 +7,7 @@ python train.py $TRAIN_SET \
 --with-mask \
 --with-ssim \
 --name poselstmnet_256_v0.1 \
---lstm
+--lstm \
 # --debug \
 # --keyframe ./datasets/kitti_keyframe/orbslam2_key/
 # --pretrained-disp checkpoints/posenet_256_seqLen7/80/dispnet_model_best.pth.tar \

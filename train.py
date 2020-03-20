@@ -238,6 +238,11 @@ def main():
         if not args.debug:
             logger.epoch_bar.update(epoch)
 
+        # if args.debug:
+        #     print(f"test validation!!")
+        #     errors, error_names = validate_without_gt(
+        #         args, val_loader, disp_net, pose_net, epoch, logger)
+
         # train for one epoch
         if not args.debug:
             logger.reset_train_bar()
@@ -269,13 +274,21 @@ def main():
         # remember lowest error and save checkpoint
         is_best = decisive_error < best_error
         best_error = min(best_error, decisive_error)
+        def model_state_dict(net):
+            if getattr(net, "module", None) is not None:
+                model_state_dict = net.module.state_dict()
+            else:
+                model_state_dict = net.state_dict()
+            return model_state_dict
+            
         save_checkpoint(
             args.save_path, {
                 'epoch': epoch + 1,
-                'state_dict': disp_net.module.state_dict()
+                # 'state_dict': disp_net.module.state_dict()
+                'state_dict': model_state_dict(disp_net)
             }, {
                 'epoch': epoch + 1,
-                'state_dict': pose_net.module.state_dict()
+                'state_dict': model_state_dict(pose_net)
             },
             is_best)
 
@@ -400,9 +413,19 @@ def validate_without_gt(args, val_loader, disp_net, pose_net, epoch, logger):
             ref_depth = [1 / disp_net(ref_img)]
             ref_depths.append(ref_depth)
 
-        poses, poses_inv = compute_pose_with_inv(pose_net, tgt_img, ref_imgs)
+        if args.lstm:
+            ref_tgt_imgs = ref_imgs
+            pose_net.init_lstm_states(tgt_img)
+            # tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs[:-1])
+            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_tgt_imgs)
 
-        loss_1, loss_3 = compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, ref_depths,
+            loss_1, loss_3 = compute_photo_and_geometry_loss_lstm(ref_tgt_imgs[1:], ref_imgs[:-1], intrinsics, tgt_depth, ref_depths[:-1],
+                                                         poses, poses_inv, args)
+        else:
+            # tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs)
+            poses, poses_inv = compute_pose_with_inv(pose_net, tgt_img, ref_imgs)
+
+            loss_1, loss_3 = compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, ref_depths,
                                                          poses, poses_inv, args)
 
         loss_2 = compute_smooth_loss(tgt_depth, tgt_img, ref_depths, ref_imgs)
