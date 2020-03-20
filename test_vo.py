@@ -30,6 +30,7 @@ parser.add_argument("--save_video", action="store_true", help="save as video")
 parser.add_argument("--skip_frame", default=1, type=int, help="The time differences between frames")
 parser.add_argument("--keyframe", default="", type=str, help="File with keyframe stamps")
 parser.add_argument("--all_frame", action="store_true", help="export all frames based on keyframes")
+parser.add_argument("--lstm", action='store_true', default=False, help="use lstm network")
 
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -71,7 +72,12 @@ def main():
 
     # model
     weights_pose = torch.load(args.pretrained_posenet)
-    pose_net = models.PoseNet().to(device)
+    lstm = args.lstm
+    if lstm:
+        from models.PoseLstmNet import PoseLstmNet
+        pose_net = PoseLstmNet().to(device)
+    else:
+        pose_net = models.PoseNet().to(device)
     pose_net.load_state_dict(weights_pose['state_dict'], strict=False)
     pose_net.eval()
 
@@ -135,8 +141,14 @@ def main():
         loop_arr = kf_arr
     # print(f"loop_arr: {loop_arr}")
 
+    # init lstm hidden layer
+    if lstm:
+        pose_net.init_lstm_states(tensor_img1)
+
     idx_kf = 0
     tensor_img2 = None
+    reset_interval = -1
+    print(f"+++++ reset interval: {reset_interval} +++++")
     idx_img2 = -1
     for iter in tqdm(loop_arr):
         if args.all_frame:
@@ -157,7 +169,9 @@ def main():
                     tensor_img1 = load_tensor_image(test_files[idx_img1], args)
                 # update key_pose
                 key_pose = global_pose
-
+        if reset_interval > 0 and iter%reset_interval == 0:
+            pose_net.init_lstm_states(tensor_img1)
+            pose = pose_net(tensor_img1)
         # same process
         ## load image2
         idx_img2 = iter + 1
@@ -168,7 +182,10 @@ def main():
             tensor_img2 = load_tensor_image(test_files[iter+skip_frame], args)
             idx_img2 = iter + skip_frame
 
-        pose = pose_net(tensor_img1, tensor_img2)
+        if lstm:
+            pose = pose_net(tensor_img2)
+        else:
+            pose = pose_net(tensor_img1, tensor_img2)
         pose_mat = pose_vec2mat(pose).squeeze(0).cpu().numpy()
         pose_mat = np.vstack([pose_mat, np.array([0, 0, 0, 1])])
         
