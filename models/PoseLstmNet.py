@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch import sigmoid
 from torch.nn.init import xavier_uniform_, zeros_
 
+# from .Convolutional_LSTM_PyTorch.convolution_lstm import ConvLSTMCell # from https://github.com/automan000/Convolutional_LSTM_PyTorch
 from .Convolutional_LSTM_PyTorch.convolution_lstm import ConvLSTMCell # from https://github.com/automan000/Convolutional_LSTM_PyTorch
 import math
 
@@ -62,24 +63,36 @@ class PoseLstmNet(nn.Module):
                 if m.bias is not None:
                     zeros_(m.bias)
 
-    def init_lstm_states(self, x):
-        self.lstm_internal_states.clear()
-        bsize, _, height, width = x.size()
-        for i, layer in enumerate(self.lstmLayers):
-            ratio = self.lstm_width_ratio[i]
-            (h, c) = layer.init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
-                                            shape=(math.ceil(height/ratio), math.ceil(width/ratio)) )
-            # print(f"h: {h.shape}")
-            self.lstm_internal_states.append((h, c))
+    # def init_lstm_states(self, x):
+    #     self.lstm_internal_states.clear()
+    #     bsize, _, height, width = x.size()
+    #     for i, layer in enumerate(self.lstmLayers):
+    #         ratio = self.lstm_width_ratio[i]
+    #         (h, c) = layer.init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
+    #                                         shape=(math.ceil(height/ratio), math.ceil(width/ratio)) )
+    #         # print(f"h: {h.shape}")
+    #         self.lstm_internal_states.append((h, c))
 
 
-    def forward(self, target_image):
-        if len(self.lstm_internal_states) == 0:
-            print(f"lstm states not init")
-            raise
+    def forward(self, target_image, ref_img, init_states=False):
+        if len(self.lstm_internal_states) == 0 or init_states:
+            # self.init_lstm_states(target_image)
+            self.lstm_internal_states.clear()
+            bsize, _, height, width = target_image.size()
+            for i, layer in enumerate(self.lstmLayers):
+                ratio = self.lstm_width_ratio[i]
+                (h, c) = layer.init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
+                                                shape=(math.ceil(height/ratio), math.ceil(width/ratio)) )
+                # print(f"h: {h.shape}")
+                self.lstm_internal_states.append((h, c))            
+            # print(f"lstm states initializing...")
+            # raise
         # input = [target_image, ref_img]
         # input = torch.cat(input, 1)
-        input = target_image
+        # input = target_image
+        input = [target_image, ref_img]
+        input = torch.cat(input, 1)
+
         out_conv1 = self.conv1(input)
         out_conv2 = self.conv2(out_conv1)
         out_conv3 = self.conv3(out_conv2)
@@ -105,7 +118,7 @@ class PoseLstmNet(nn.Module):
 
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = PoseLstmNet()
+    model = PoseLstmNet(channel=6)
     model = model.to(device)
 
 
@@ -113,13 +126,14 @@ def main():
     from torchsummary import summary
     # width, height = 320, 240 # (256, 832, 3)
     height, width = 256, 832 # (256, 832, 3)
-    model.init_lstm_states(torch.zeros((1,3, height, width)) )
+    # model.init_lstm_states(torch.zeros((1,3, height, width)) )
     # summary(model, input_size=[(3, 240, 320), (3, 240, 320)])
-    summary(model, input_size=(3, height, width) )
+    summary(model, input_size=[(3, height, width), (3, height, width)] )
 
     ## test
     image = torch.zeros((1,3, height, width))
-    outs = model(image.to(device))
+    model = torch.nn.DataParallel(model)
+    outs = model(image.to(device), image.to(device))
     print("outs: ", list(outs))
 
 

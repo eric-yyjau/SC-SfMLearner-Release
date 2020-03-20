@@ -87,6 +87,8 @@ n_iter = 0
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+## add number of gpu(s)
+
 def dump_config(config, output_dir):
     # Path(output_dir).mkdir(exist_ok=True, parents=True)
     import os, yaml
@@ -174,7 +176,7 @@ def main():
     disp_net = getattr(models, args.dispnet)().to(device)
     if args.lstm:
         from models.PoseLstmNet import PoseLstmNet
-        pose_net = PoseLstmNet().to(device)
+        pose_net = PoseLstmNet(channel=6).to(device)
     else:
         pose_net = models.PoseNet().to(device)
 
@@ -327,11 +329,11 @@ def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger,
 
         # compute output
         if lstm:
-            pose_net.init_lstm_states(tgt_img)
+            # pose_net.init_lstm_states(tgt_img)
             # ref_tgt_imgs = [ref_imgs, tgt_img]
             ref_tgt_imgs = ref_imgs
             tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs[:-1])
-            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_tgt_imgs)
+            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_imgs[1:], ref_imgs[:-1])
 
             loss_1, loss_3 = compute_photo_and_geometry_loss_lstm(ref_tgt_imgs[1:], ref_imgs[:-1], intrinsics, tgt_depth, ref_depths,
                                                          poses, poses_inv, args)
@@ -415,9 +417,9 @@ def validate_without_gt(args, val_loader, disp_net, pose_net, epoch, logger):
 
         if args.lstm:
             ref_tgt_imgs = ref_imgs
-            pose_net.init_lstm_states(tgt_img)
+            # pose_net.init_lstm_states(tgt_img)
             # tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs[:-1])
-            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_tgt_imgs)
+            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_imgs[1:], ref_imgs[:-1])
 
             loss_1, loss_3 = compute_photo_and_geometry_loss_lstm(ref_tgt_imgs[1:], ref_imgs[:-1], intrinsics, tgt_depth, ref_depths[:-1],
                                                          poses, poses_inv, args)
@@ -502,18 +504,20 @@ def compute_pose_with_inv(pose_net, tgt_img, ref_imgs):
 
     return poses, poses_inv
 
-def compute_pose_with_inv_lstm(pose_net, ref_imgs):
+def compute_pose_with_inv_lstm(pose_net, tgt_imgs, ref_imgs, init=True):
     """
     loop through images and get consecutive relative poses
     """
     poses = []
     poses_inv = []
-    for ref_img in ref_imgs:
-        poses.append(pose_net(ref_img))
+    # init = True
+    for tgt_img, ref_img in zip(tgt_imgs, ref_imgs):
+        poses.append(pose_net(tgt_img, ref_img, init_states=init))
+        init = False
     poses = poses[1:] # discard the init frame
     # reverse order
-    for ref_img in ref_imgs[::-1]: 
-        poses_inv.append(pose_net(ref_img))
+    for tgt_img, ref_img in zip(tgt_imgs[::-1], ref_imgs[::-1]):
+        poses_inv.append(pose_net(tgt_img, ref_img))
     poses_inv = poses_inv[1:][::-1] # discard the first pose, reverse the poses
 
     return poses, poses_inv
