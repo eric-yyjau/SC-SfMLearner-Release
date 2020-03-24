@@ -44,7 +44,7 @@ def dump_example(args, scene):
         for i, sample in tqdm(enumerate(data_loader.get_scene_imgs(scene_data))):
             img, frame_nb = sample["img"], sample["id"]
             dump_img_file = dump_dir/'{}.jpg'.format(frame_nb)
-            if i<5: print(f"dump_img_file: {dump_img_file}")
+            if i<1: print(f"dump_img_file: {dump_img_file}")
             scipy.misc.imsave(dump_img_file, img)
             if "pose" in sample.keys():
                 poses.append(sample["pose"].tolist())

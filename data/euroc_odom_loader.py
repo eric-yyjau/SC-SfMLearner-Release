@@ -11,8 +11,8 @@ from glob import glob
 class EurocOdomLoader(KittiOdomLoader):
     def __init__(self,
                  dataset_dir,
-                 img_height=256,
-                 img_width=832):
+                 img_height=480,
+                 img_width=752):
 
         self.dataset_dir = Path(dataset_dir)
         self.img_height = img_height
@@ -20,7 +20,7 @@ class EurocOdomLoader(KittiOdomLoader):
         # self.cam_ids = ['2', '3']
         self.cam_ids = ['0', '1']
         # self.train_sets = ["MH_01_easy"]
-        self.train_sets = [
+        self.train_sets = [ # only process train_set
                     "MH_01_easy",
                     "MH_02_easy",
                     "MH_04_difficult",
