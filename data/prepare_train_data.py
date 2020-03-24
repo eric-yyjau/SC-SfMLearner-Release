@@ -9,7 +9,7 @@ from path import Path
 parser = argparse.ArgumentParser()
 parser.add_argument("dataset_dir", metavar='DIR',
                     help='path to original dataset')
-parser.add_argument("--dataset-format", type=str, default='kitti_raw', choices=["kitti_raw", "cityscapes", "kitti_odom"])
+parser.add_argument("--dataset-format", type=str, default='kitti_raw', choices=["kitti_raw", "cityscapes", "kitti_odom", "euroc"])
 parser.add_argument("--static-frames", default=None,
                     help="list of imgs to discard for being static, if not set will discard them based on speed \
                     (careful, on KITTI some frames have incorrect speed)")
@@ -41,9 +41,10 @@ def dump_example(args, scene):
         poses_file = dump_dir/'poses.txt'
         poses = []
 
-        for sample in data_loader.get_scene_imgs(scene_data):
+        for i, sample in tqdm(enumerate(data_loader.get_scene_imgs(scene_data))):
             img, frame_nb = sample["img"], sample["id"]
             dump_img_file = dump_dir/'{}.jpg'.format(frame_nb)
+            if i<5: print(f"dump_img_file: {dump_img_file}")
             scipy.misc.imsave(dump_img_file, img)
             if "pose" in sample.keys():
                 poses.append(sample["pose"].tolist())
@@ -76,6 +77,13 @@ def main():
     if args.dataset_format == 'kitti_odom':
         from kitti_odom_loader import KittiOdomLoader
         data_loader = KittiOdomLoader(args.dataset_dir,
+                                     img_height=args.height,
+                                     img_width=args.width,
+                                     )
+
+    if args.dataset_format == 'euroc':
+        from euroc_odom_loader import EurocOdomLoader
+        data_loader = EurocOdomLoader(args.dataset_dir,
                                      img_height=args.height,
                                      img_width=args.width,
                                      )

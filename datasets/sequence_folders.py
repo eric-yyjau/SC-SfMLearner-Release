@@ -117,16 +117,24 @@ class SequenceFolder(data.Dataset):
 
     def __getitem__(self, index):
         sample = self.samples[index]
-        tgt_img = load_as_float(sample["tgt"])
+
+        def gray2rgb(img):
+            if img.ndim == 2:
+                img = np.tile(img[..., np.newaxis], (1, 1, 3))  # expand to rgb
+            return img
+        tgt_img = gray2rgb(load_as_float(sample["tgt"]))
         # print(f"img_id: {sample['img_id']}")
         # print(f"tgt_img: {tgt_img.shape}")
-        ref_imgs = [load_as_float(ref_img) for ref_img in sample["ref_imgs"]]
+        ref_imgs = [gray2rgb(load_as_float(ref_img)) for ref_img in sample["ref_imgs"]]
         if self.transform is not None:
+            # print(f"ref_imgs: {len(ref_imgs)}")
             imgs, intrinsics = self.transform(
                 [tgt_img] + ref_imgs, np.copy(sample["intrinsics"])
             )
             tgt_img = imgs[0]
             ref_imgs = imgs[1:]
+            # print(f"ref_imgs: {len(ref_imgs)}")
+
         else:
             intrinsics = np.copy(sample["intrinsics"])
         return tgt_img, ref_imgs, intrinsics, np.linalg.inv(intrinsics)
