@@ -6,9 +6,9 @@ python train.py $TRAIN_SET \
 -b4 -s0.1 -c0.5 --epoch-size 1000 --sequence-length 11 \
 --with-mask \
 --with-ssim \
---name poselstmnet_256_v0.2_2fr_lr3 \
+--name poselstmnet_256_v0.3_2fr_seq11 \
 --batch-size 2 \
---lr 1e-3 \
+--lr 1e-4 \
 --lstm \
 --dataParallel \
 

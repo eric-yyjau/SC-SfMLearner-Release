@@ -41,6 +41,11 @@ def compute_photo_and_geometry_loss_lstm(tgt_imgs, ref_imgs, intrinsics, tgt_dep
     photo_loss = 0
     geometry_loss = 0
 
+    if_inv = True
+    if poses_inv is None:
+        if_inv = False
+        poses_inv = [None] * len(poses)
+
     num_scales = min(len(tgt_depth), args.num_scales)
     for tgt_img, ref_img, ref_depth, pose, pose_inv in zip(tgt_imgs, ref_imgs, ref_depths, poses, poses_inv):
         for s in range(num_scales):
@@ -54,11 +59,15 @@ def compute_photo_and_geometry_loss_lstm(tgt_imgs, ref_imgs, intrinsics, tgt_dep
 
             photo_loss1, geometry_loss1 = compute_pairwise_loss(
                 tgt_img_scaled, ref_img_scaled, tgt_depth[s], ref_depth[s], pose, intrinsic_scaled, args)
-            photo_loss2, geometry_loss2 = compute_pairwise_loss(
-                ref_img_scaled, tgt_img_scaled, ref_depth[s], tgt_depth[s], pose_inv, intrinsic_scaled, args)
+            if if_inv:
+                photo_loss2, geometry_loss2 = compute_pairwise_loss(
+                    ref_img_scaled, tgt_img_scaled, ref_depth[s], tgt_depth[s], pose_inv, intrinsic_scaled, args)
 
-            photo_loss += (photo_loss1 + photo_loss2)
-            geometry_loss += (geometry_loss1 + geometry_loss2)
+                photo_loss += (photo_loss1 + photo_loss2)
+                geometry_loss += (geometry_loss1 + geometry_loss2)
+            else:
+                photo_loss += photo_loss1
+                geometry_loss += geometry_loss1                
 
     return photo_loss, geometry_loss
 

@@ -49,14 +49,33 @@ class EurocOdomLoader(KittiOdomLoader):
     def get_cam_rel_path(self, scene_data):
         return Path(scene_data['dir'])/'mav0'/f"cam{scene_data['cid']}"
 
+    @staticmethod
+    def read_images_files_from_folder(drive_path, folder="rgb"):
+        print(f"drive_path: {drive_path}")
+        ## given that we have matched time stamps
+        arr = np.genfromtxt(
+            f"{drive_path}/{folder}/data_f.txt", dtype="str"
+        )  # [N, 2(time, path)]
+        img_files = np.char.add(str(drive_path) + f"/{folder}/data/", arr[:, 1])
+        img_files = [Path(f) for f in img_files]
+        img_files = sorted(img_files)
+
+        print(f"img_files: {img_files[0]}")
+        return img_files
+
     def collect_scenes(self, drive):
         train_scenes = []
+        all_imgs = False
         for c in self.cam_ids:
             scene_data = {'cid': c, 'dir': drive, 'frame_id': [], 'rel_path': drive.name + '_' + c}
             
-            img_dir = Path(scene_data['dir']/'mav0'/f"cam{scene_data['cid']}/data")
-            # scene_data['frame_id'] = [x.split('.')[0] for x in os.listdir(img_dir)]
-            scene_data['frame_id'] = glob(str(img_dir) + "/*")  # path to the images
+            if all_imgs:
+                img_dir = Path(scene_data['dir']/'mav0'/f"cam{scene_data['cid']}/data")
+                # scene_data['frame_id'] = [x.split('.')[0] for x in os.listdir(img_dir)]
+                scene_data['frame_id'] = glob(str(img_dir) + "/*")  # path to the images
+            else:
+                img_dir = Path(scene_data['dir']/'mav0')
+                scene_data['frame_id'] = self.read_images_files_from_folder(img_dir, folder="cam0")
             print(f"img_dir: {img_dir}")
             print(f"scene_data['frame_id']: {len(scene_data['frame_id'])}")
 

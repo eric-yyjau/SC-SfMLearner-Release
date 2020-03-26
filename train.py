@@ -81,6 +81,7 @@ parser.add_argument("--lstm", action='store_true', default=False, help="use lstm
 parser.add_argument("--debug", action='store_true', default=False, help="Debug!")
 parser.add_argument("--dataParallel", action='store_true', default=False, 
                     help="pytorch.DataParallel. Training and testing should be done in the same way")
+parser.add_argument("--notes", default="", type=str, help="Some notes for this model")
 
 best_error = -1
 n_iter = 0
@@ -329,11 +330,12 @@ def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger,
 
         # compute output
         if lstm:
+            inv = False
             # pose_net.init_lstm_states(tgt_img)
             # ref_tgt_imgs = [ref_imgs, tgt_img]
             ref_tgt_imgs = ref_imgs
             tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs[:-1])
-            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_imgs[1:], ref_imgs[:-1])
+            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_imgs[1:], ref_imgs[:-1], inv=inv)
 
             loss_1, loss_3 = compute_photo_and_geometry_loss_lstm(ref_tgt_imgs[1:], ref_imgs[:-1], intrinsics, tgt_depth, ref_depths,
                                                          poses, poses_inv, args)
@@ -419,7 +421,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_net, epoch, logger):
             ref_tgt_imgs = ref_imgs
             # pose_net.init_lstm_states(tgt_img)
             # tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs[:-1])
-            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_imgs[1:], ref_imgs[:-1])
+            poses, poses_inv = compute_pose_with_inv_lstm(pose_net, ref_imgs[1:], ref_imgs[:-1], inv=False)
 
             loss_1, loss_3 = compute_photo_and_geometry_loss_lstm(ref_tgt_imgs[1:], ref_imgs[:-1], intrinsics, tgt_depth, ref_depths[:-1],
                                                          poses, poses_inv, args)
@@ -504,7 +506,7 @@ def compute_pose_with_inv(pose_net, tgt_img, ref_imgs):
 
     return poses, poses_inv
 
-def compute_pose_with_inv_lstm(pose_net, tgt_imgs, ref_imgs, init=True):
+def compute_pose_with_inv_lstm(pose_net, tgt_imgs, ref_imgs, init=True, inv=True):
     """
     loop through images and get consecutive relative poses
     """
@@ -515,6 +517,10 @@ def compute_pose_with_inv_lstm(pose_net, tgt_imgs, ref_imgs, init=True):
         poses.append(pose_net(tgt_img, ref_img, init_states=init))
         init = False
     poses = poses[1:] # discard the init frame
+
+    if inv == False:
+        return poses, None
+
     # reverse order
     for tgt_img, ref_img in zip(tgt_imgs[::-1], ref_imgs[::-1]):
         # poses_inv.append(pose_net(tgt_img, ref_img))
