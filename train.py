@@ -540,7 +540,8 @@ def compute_pose_with_inv_lstm(pose_net, tgt_imgs, ref_imgs, init=True):
     poses = poses[1:] # discard the init frame
     # reverse order
     for tgt_img, ref_img in zip(tgt_imgs[::-1], ref_imgs[::-1]):
-        poses_inv.append(pose_net(tgt_img, ref_img))
+        # poses_inv.append(pose_net(tgt_img, ref_img))
+        poses_inv.append(pose_net(ref_img, tgt_img))
     poses_inv = poses_inv[1:][::-1] # discard the first pose, reverse the poses
 
     return poses, poses_inv
