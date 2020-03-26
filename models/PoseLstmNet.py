@@ -63,15 +63,15 @@ class PoseLstmNet(nn.Module):
                 if m.bias is not None:
                     zeros_(m.bias)
 
-    # def init_lstm_states(self, x):
-    #     self.lstm_internal_states.clear()
-    #     bsize, _, height, width = x.size()
-    #     for i, layer in enumerate(self.lstmLayers):
-    #         ratio = self.lstm_width_ratio[i]
-    #         (h, c) = layer.init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
-    #                                         shape=(math.ceil(height/ratio), math.ceil(width/ratio)) )
-    #         # print(f"h: {h.shape}")
-    #         self.lstm_internal_states.append((h, c))
+    def init_lstm_states(self, x):
+        self.lstm_internal_states.clear()
+        bsize, _, height, width = x.size()
+        for i, layer in enumerate(self.lstmLayers):
+            ratio = self.lstm_width_ratio[i]
+            (h, c) = layer.init_hidden(batch_size=bsize, hidden=self.hidden_channels[i],
+                                            shape=(math.ceil(height/ratio), math.ceil(width/ratio)) )
+            # print(f"h: {h.shape}")
+            self.lstm_internal_states.append((h, c))
 
 
     def forward(self, target_image, ref_img, init_states=False):

@@ -12,6 +12,9 @@ from scipy.ndimage.interpolation import zoom
 import models
 import cv2
 
+from utils import read_images_files_from_folder
+from utils import load_tensor_image
+
 parser = argparse.ArgumentParser(
     description="Script for visualizing depth map and masks",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -64,33 +67,6 @@ parser.add_argument(
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
-def read_images_files_from_folder(drive_path, folder="rgb"):
-    # print(f"cid_num: {scene_data['cid_num']}")
-    # img_dir = os.path.join(drive_path, "cam%d" % scene_data["cid_num"])
-    # img_files = sorted(glob(img_dir + "/data/*.png"))
-    print(f"drive_path: {drive_path}")
-    ## given that we have matched time stamps
-    arr = np.genfromtxt(
-        f"{drive_path}/{folder}/data_f.txt", dtype="str"
-    )  # [N, 2(time, path)]
-    img_files = np.char.add(str(drive_path) + f"/{folder}/data/", arr[:, 1])
-    img_files = [Path(f) for f in img_files]
-    img_files = sorted(img_files)
-
-    print(f"img_files: {img_files[0]}")
-    return img_files
-
-
-def load_tensor_image(filename, args):
-    img = imread(filename).astype(np.float32)
-    if img.ndim == 2:
-        img = np.tile(img[..., np.newaxis], (1, 1, 3))  # expand to rgb
-    h, w, _ = img.shape
-    if h != args.img_height or w != args.img_width:
-        img = imresize(img, (args.img_height, args.img_width)).astype(np.float32)
-    img = np.transpose(img, (2, 0, 1))
-    tensor_img = ((torch.from_numpy(img).unsqueeze(0) / 255 - 0.5) / 0.5).to(device)
-    return tensor_img
 
 
 @torch.no_grad()
@@ -103,11 +79,13 @@ def main():
     lstm = args.lstm
     if lstm:
         from models.PoseLstmNet import PoseLstmNet
-
-        pose_net = PoseLstmNet().to(device)
+        channel = 6
+        print(f"LSTM - channel size: {channel}")
+        pose_net = PoseLstmNet(channel=channel).to(device)
     else:
         pose_net = models.PoseNet().to(device)
-    pose_net.load_state_dict(weights_pose["state_dict"], strict=False)
+    # pose_net.load_state_dict(weights_pose["state_dict"], strict=False)
+    pose_net.load_state_dict(weights_pose["state_dict"])
     pose_net.eval()
 
     # dispNet
@@ -216,7 +194,7 @@ def main():
                 key_pose = global_pose
         if reset_interval > 0 and iter % reset_interval == 0:
             pose_net.init_lstm_states(tensor_img1)
-            pose = pose_net(tensor_img1)
+            pose = pose_net(tensor_img1, tensor_img2)
         # same process
         ## load image2
         idx_img2 = iter + 1
@@ -228,7 +206,8 @@ def main():
             idx_img2 = iter + skip_frame
 
         if lstm:
-            pose = pose_net(tensor_img2)
+            # pose = pose_net(tensor_img1, tensor_img2)
+            pose = pose_net(tensor_img2, tensor_img1)
         else:
             pose = pose_net(tensor_img1, tensor_img2)
         pose_mat = pose_vec2mat(pose).squeeze(0).cpu().numpy()

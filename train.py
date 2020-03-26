@@ -52,6 +52,9 @@ parser.add_argument('--pretrained-disp', dest='pretrained_disp',
                     default=None, metavar='PATH', help='path to pre-trained dispnet model')
 parser.add_argument('--pretrained-pose', dest='pretrained_pose', default=None,
                     metavar='PATH', help='path to pre-trained Pose net model')
+parser.add_argument("--disp_train", action='store_true', default=False, help="Train dipsnet")
+parser.add_argument("--pose_train", action='store_true', default=False, help="Train posenet")
+
 parser.add_argument('--seed', default=0, type=int,
                     help='seed for random functions, and network initialization')
 parser.add_argument('--log-summary', default='progress_log_summary.csv',
@@ -97,6 +100,11 @@ def dump_config(config, output_dir):
     with open(os.path.join(output_dir, 'config.yml'), 'w') as f:
         yaml.dump(config, f, default_flow_style=False)
     pass
+
+def freeze_model(model):
+    for p in model.parameters():
+        p.requires_grad = False
+    return model
 
 def main():
     global best_error, n_iter, device
@@ -194,6 +202,21 @@ def main():
         disp_net.load_state_dict(weights['state_dict'])
     else:
         disp_net.init_weights()
+    ## train or not
+    if args.pose_train:
+        print(f"train posenet!")
+        pass
+    else:
+        print(f"+++++ freeze posenet! +++++")
+        freeze_model(pose_net)
+    if args.disp_train:
+        print(f"+++++ train dispnet! +++++")
+    else:
+        print(f"+++++ freeze dispnet! +++++")
+        freeze_model(disp_net)
+
+
+
 
     cudnn.benchmark = True
     if args.dataParallel:
