@@ -7,6 +7,9 @@ import argparse
 from tqdm import tqdm
 import models
 
+from utils import read_images_files_from_folder
+from utils import load_tensor_image
+
 parser = argparse.ArgumentParser(description='Script for DispNet testing with corresponding groundTruth',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--pretrained-dispnet", required=True,
@@ -29,6 +32,7 @@ parser.add_argument('--dispnet', dest='dispnet', required=True, type=str, choice
 parser.add_argument("--sequence", default='09',
                     type=str, help="sequence to test")
 parser.add_argument("--save_video", action="store_true", help="save as video")
+parser.add_argument("--save_npy", action="store_true", help="save as video")
 
 device = torch.device(
     "cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -36,18 +40,20 @@ device = torch.device(
 
 def load_img(filename, args):
     img = imread(filename).astype(np.float32)
+    if img.ndim == 2:
+        img = np.tile(img[..., np.newaxis], (1, 1, 3))  # expand to rgb
     h, w, _ = img.shape
     if (h != args.img_height or w != args.img_width):
         img = imresize(img, (args.img_height, args.img_width)
                        ).astype(np.float32)    
     return img
 
-def load_tensor_image(filename, args):
-    img = load_img(filename, args)
-    img = np.transpose(img, (2, 0, 1))
-    tensor_img = (
-        (torch.from_numpy(img).unsqueeze(0)/255 - 0.5)/0.5).to(device)
-    return tensor_img
+# def load_tensor_image(filename, args):
+#     img = load_img(filename, args)
+#     img = np.transpose(img, (2, 0, 1))
+#     tensor_img = (
+#         (torch.from_numpy(img).unsqueeze(0)/255 - 0.5)/0.5).to(device)
+#     return tensor_img
 
 def read_depth_npy(filename):
     depth_arr = np.load(filename)
@@ -90,7 +96,7 @@ def main():
 
     ## load the first image
     n = len(test_files)
-    tensor_img1 = load_tensor_image(test_files[0], args)
+    tensor_img1 = load_tensor_image(test_files[0], args, device=device)
 
     ## for saving video
     if args.save_video:
@@ -105,7 +111,7 @@ def main():
 
     # for j in tqdm(range(len(test_files))):
     for iter in tqdm(range(n - 1)):
-        tgt_img = load_tensor_image(test_files[iter+1], args)
+        tgt_img = load_tensor_image(test_files[iter+1], args, device=device)
         # tgt_img = load_tensor_image(dataset_dir + test_files[j], args)
         pred_disp = disp_net(tgt_img).cpu().numpy()[0, 0]
 
@@ -132,10 +138,12 @@ def main():
             video.write(frame)
         # if iter > 10:
         #     break
-    
-    np.save(output_dir/'predictions.npy', predictions)
     if args.save_video:
+        print(f"save video")
         video.release()
+    if args.save_npy:
+        print(f"save prediction into npy")
+        np.save(output_dir/'predictions.npy', predictions)
 
 
 if __name__ == '__main__':

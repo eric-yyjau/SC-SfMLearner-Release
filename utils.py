@@ -73,3 +73,38 @@ def save_checkpoint(save_path, dispnet_state, exp_pose_state, is_best, filename=
         for prefix in file_prefixes:
             shutil.copyfile(save_path/'{}_{}'.format(prefix, filename),
                             save_path/'{}_model_best.pth.tar'.format(prefix))
+
+
+####### functions in test_*.py #######
+
+# from utils import read_images_files_from_folder
+def read_images_files_from_folder(drive_path, folder="rgb"):
+    # print(f"cid_num: {scene_data['cid_num']}")
+    # img_dir = os.path.join(drive_path, "cam%d" % scene_data["cid_num"])
+    # img_files = sorted(glob(img_dir + "/data/*.png"))
+    print(f"drive_path: {drive_path}")
+    ## given that we have matched time stamps
+    arr = np.genfromtxt(
+        f"{drive_path}/{folder}/data_f.txt", dtype="str"
+    )  # [N, 2(time, path)]
+    img_files = np.char.add(str(drive_path) + f"/{folder}/data/", arr[:, 1])
+    img_files = [Path(f) for f in img_files]
+    img_files = sorted(img_files)
+
+    print(f"img_files: {img_files[0]}")
+    return img_files
+
+# from utils import load_tensor_image
+from imageio import imread
+from skimage.transform import resize as imresize
+
+def load_tensor_image(filename, args, device="cpu"):
+    img = imread(filename).astype(np.float32)
+    if img.ndim == 2:
+        img = np.tile(img[..., np.newaxis], (1, 1, 3))  # expand to rgb
+    h, w, _ = img.shape
+    if h != args.img_height or w != args.img_width:
+        img = imresize(img, (args.img_height, args.img_width)).astype(np.float32)
+    img = np.transpose(img, (2, 0, 1))
+    tensor_img = ((torch.from_numpy(img).unsqueeze(0) / 255 - 0.5) / 0.5).to(device)
+    return tensor_img
