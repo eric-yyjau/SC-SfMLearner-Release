@@ -199,6 +199,9 @@ parser.add_argument(
 parser.add_argument(
     "--lstm", action="store_true", default=False, help="use lstm network"
 )
+parser.add_argument(
+    "--kf_loss", action="store_true", default=False, help="test keyframe loss (jump frame loss)"
+)
 parser.add_argument("--debug", action="store_true", default=False, help="Debug!")
 parser.add_argument(
     "--dataParallel",
@@ -507,18 +510,57 @@ def validate_without_gt(
         else:
             # tgt_depth, ref_depths = compute_depth(disp_net, tgt_img, ref_imgs)
             # poses, poses_inv = compute_pose_with_inv(pose_net, tgt_img, ref_imgs)
+
             poses, poses_inv = compute_pose_with_inv(pose_net, tgt_img, ref_imgs)
 
-            loss_1, loss_3 = compute_photo_and_geometry_loss(
-                tgt_img,
-                ref_imgs,
-                intrinsics,
-                tgt_depth,
-                ref_depths,
-                poses,
-                poses_inv,
-                args,
-            )
+            kf_loss = args.kf_loss
+            def accumulate_poses(poses):
+                poses_acc = np.identity(4)
+                for pose in poses:
+                    pose_mat = pose_vec2mat(pose).squeeze(0).cpu().numpy()
+                    pose_mat = np.vstack([pose_mat, np.array([0, 0, 0, 1])])
+                    poses_acc = pose_mat @ poses_acc
+                return poses_acc
+
+            if kf_loss:
+                poses_acc = accumulate_poses(poses)
+                poses_acc_inv = accumulate_poses(poses_inv[::-1])
+                poses_kf, poses_kf_inv = compute_pose_with_inv(pose_net, ref_imgs[-1], ref_imgs[:1])
+                tgt_img = ref_imgs[-1]
+                ref_imgs = ref_imgs[:1]
+                loss_1, loss_3 = compute_photo_and_geometry_loss(
+                    tgt_img,
+                    ref_imgs,
+                    intrinsics,
+                    tgt_depth,
+                    ref_depths,
+                    poses_acc,
+                    poses_acc_inv,
+                    args,
+                )
+                loss_1_kf, loss_3_kf = compute_photo_and_geometry_loss(
+                    tgt_img,
+                    ref_imgs,
+                    intrinsics,
+                    tgt_depth,
+                    ref_depths,
+                    poses_kf,
+                    poses_kf_inv,
+                    args,
+                )
+                scalar_dict["loss/photo"] = loss_1_kf
+                scalar_dict["loss/kf-geome"] = loss_3_kf
+            else:
+                loss_1, loss_3 = compute_photo_and_geometry_loss(
+                    tgt_img,
+                    ref_imgs,
+                    intrinsics,
+                    tgt_depth,
+                    ref_depths,
+                    poses,
+                    poses_inv,
+                    args,
+                )
 
         # print(f"poses: {poses[0].shape}")
 
@@ -623,6 +665,9 @@ def compute_pose_with_inv(pose_net, tgt_img, ref_imgs):
         poses_inv.append(pose_net(ref_img, tgt_img))
 
     return poses, poses_inv
+
+# def compute_pose_accumulate(pose_net, ref_imgs):
+    # poses = []
 
 
 def compute_pose_with_inv_lstm(pose_net, ref_imgs):

@@ -8,7 +8,8 @@ python val.py $TRAIN_SET \
 --with-mask \
 --with-ssim \
 --skip_frame 1 \
---name val_posenet_test \
+--name val_posenet_kf_test \
+--kf_loss
 # --keyframe ./datasets/kitti_keyframe/orbslam2_key/
 # --pretrained-disp checkpoints/posenet_256_seqLen7/80/dispnet_model_best.pth.tar \
 # --pretrained-pose  checkpoints/posenet_256_seqLen7/80/exp_pose_model_best.pth.tar \

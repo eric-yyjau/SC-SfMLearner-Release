@@ -204,7 +204,7 @@ def main():
         disp_net.init_weights()
     ## train or not
     if args.pose_train:
-        print(f"train posenet!")
+        print(f"+++++ train posenet! +++++")
         pass
     else:
         print(f"+++++ freeze posenet! +++++")
