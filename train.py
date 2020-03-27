@@ -162,6 +162,7 @@ def main():
             seed=args.seed,
             train=False,
             sequence_length=args.sequence_length,
+            skip_frame=args.skip_frame, 
             keyframe=args.keyframe,
             tgt_img_last=args.lstm
         )
@@ -208,14 +209,14 @@ def main():
         pass
     else:
         print(f"+++++ freeze posenet! +++++")
-        freeze_model(pose_net)
+        # freeze_model(pose_net)
     if args.disp_train:
         print(f"+++++ train dispnet! +++++")
     else:
         print(f"+++++ freeze dispnet! +++++")
-        freeze_model(disp_net)
+        # freeze_model(disp_net)
 
-
+    nets = {'disp_net': disp_net, 'pose_net': pose_net}
 
 
     cudnn.benchmark = True
@@ -225,13 +226,23 @@ def main():
 
     print('=> setting adam solver')
 
-    optim_params = [
-        {'params': disp_net.parameters(), 'lr': args.lr},
-        {'params': pose_net.parameters(), 'lr': args.lr}
-    ]
-    optimizer = torch.optim.Adam(optim_params,
-                                 betas=(args.momentum, args.beta),
-                                 weight_decay=args.weight_decay)
+    optimizers = {}
+    for i, en in enumerate(nets):
+        optim_params = [
+            {'params': nets[en].parameters(), 'lr': args.lr},
+        ]
+        optimizer = torch.optim.Adam(optim_params,
+                                        betas=(args.momentum, args.beta),
+                                        weight_decay=args.weight_decay)
+        optimizers[en] = optimizer
+
+    # optim_params = [
+    #     {'params': disp_net.parameters(), 'lr': args.lr},
+    #     {'params': pose_net.parameters(), 'lr': args.lr}
+    # ]
+    # optimizer = torch.optim.Adam(optim_params,
+    #                              betas=(args.momentum, args.beta),
+    #                              weight_decay=args.weight_decay)
 
     with open(args.save_path/args.log_summary, 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter='\t')
@@ -261,6 +272,7 @@ def main():
         logger.valid_writer.write(' * Avg {}'.format(error_string))
 
     for epoch in range(args.epochs):
+        print(f"+++++ epoch: {epoch} +++++")
         if not args.debug:
             logger.epoch_bar.update(epoch)
 
@@ -273,7 +285,7 @@ def main():
         if not args.debug:
             logger.reset_train_bar()
         train_loss = train(args, train_loader, disp_net, pose_net,
-                           optimizer, args.epoch_size, logger, training_writer)
+                           optimizers, args.epoch_size, logger, training_writer)
         logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
 
         # evaluate on validation set
@@ -324,7 +336,7 @@ def main():
     logger.epoch_bar.finish()
 
 
-def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger, train_writer):
+def train(args, train_loader, disp_net, pose_net, optimizers, epoch_size, logger, train_writer):
     global n_iter, device
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -385,9 +397,14 @@ def train(args, train_loader, disp_net, pose_net, optimizer, epoch_size, logger,
         losses.update(loss.item(), args.batch_size)
 
         # compute gradient and do Adam step
-        optimizer.zero_grad()
+        for i, en in enumerate(optimizers):
+            optimizers[en].zero_grad()
         loss.backward()
-        optimizer.step()
+        if args.pose_train:
+            optimizers['pose_net'].step()
+        if args.disp_train:
+            optimizers['disp_net'].step()
+
 
         # measure elapsed time
         batch_time.update(time.time() - end)

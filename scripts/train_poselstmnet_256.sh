@@ -6,10 +6,14 @@ python train.py $TRAIN_SET \
 -b4 -s0.1 -c0.5 --epoch-size 1000 --sequence-length 11 \
 --with-mask \
 --with-ssim \
+--pose_train \
+--disp_train \
 --name poselstmnet_256_v0.3_2fr_seq11 \
 --batch-size 2 \
 --lr 1e-4 \
 --lstm \
+--pretrained-disp checkpoints/poselstmnet_256_v0.3_2fr_seq11/80k/dispnet_model_best.pth.tar \
+--pretrained-pose  checkpoints/poselstmnet_256_v0.3_2fr_seq11/80k/exp_pose_model_best.pth.tar \
 --dataParallel \
 
 # TRAIN_SET=/newfoundland/yyjau/kitti/scsfm_dump/kitti_vo_256/
